@@ -1,0 +1,94 @@
+---
+- name: IBM MQ Error Code Checker with Email Alerts and Documentation Links
+  hosts: mq_servers
+  gather_facts: false
+  vars:
+    log_file_path: /var/mqm/qmgrs/TEST/errors/AMQERR01.LOG
+    error_codes:
+      - "AMQ4036"
+      - "AMQ4100"
+      - "AMQ4128"
+      - "AMQ4757"
+      - "AMQ6090"
+      - "AMQ6119"
+      - "AMQ6125"
+      - "AMQ6150"
+      - "AMQ6183"
+      - "AMQ6184"
+      - "AMQ7469"
+      - "AMQ8101"
+      - "AMQ9202"
+      - "AMQ9208"
+      - "AMQ9209"
+      - "AMQ9213"
+      - "AMQ9228"
+      - "AMQ9503"
+      - "AMQ9526"
+
+    # Mapping error codes to their knowledge articles
+    error_code_links:
+      AMQ4036: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#4036"
+      AMQ4100: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#4100"
+      AMQ4128: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#4128"
+      AMQ4757: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#4757"
+      AMQ6090: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#6090"
+      AMQ6119: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#6119"
+      AMQ6125: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#6125"
+      AMQ6150: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#6150"
+      AMQ6183: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#6183"
+      AMQ6184: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#6184"
+      AMQ7469: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#7469"
+      AMQ8101: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#8101"
+      AMQ9202: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#9202"
+      AMQ9208: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#9208"
+      AMQ9209: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#9209"
+      AMQ9213: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#9213"
+      AMQ9228: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#9228"
+      AMQ9503: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#9503"
+      AMQ9526: "https://www.ibm.com/support/pages/common-ibm-mq-messages-and-most-likely-causes#9526"
+
+    alert_email: "prastogi02.pr@gmail.com"
+
+  tasks:
+    - name: Check if log file exists
+      stat:
+        path: "{{ log_file_path }}"
+      register: log_file
+
+    - name: Search for error codes in log file
+      command: "grep -E '{{ error_codes | join(\"|\") }}' {{ log_file_path }}"
+      register: error_matches
+      when: log_file.stat.exists
+
+    - name: Prepare error message with links
+      set_fact:
+        error_details: |
+          The following IBM MQ error codes were found in {{ log_file_path }}:
+          {% for error_code in error_codes %}
+            {% if error_code in error_matches.stdout %}
+              Error Code: {{ error_code }}
+              Knowledge Base Link: {{ error_code_links[error_code] }}
+            {% endif %}
+          {% endfor %}
+      when: error_matches.stdout != ""
+      register: print_msg
+
+      #    - name: Send email alert if errors are found
+      #community.general.mail:
+      #  host: "smtp.gmail.com"
+      #  port: 587
+      #  to: "{{ alert_email }}"
+      #  subject: "IBM MQ Error Alert - Codes Found in Log"
+      #  body: "{{ error_details }}"
+      #when: error_matches.stdout != ""
+
+    - name: Write error details to a text file
+      copy:
+        content: "{{ error_details }}"
+        dest: /tmp/file.txt
+      when: error_matches.stdout != ""
+
+    - name: Print message if no errors found
+      debug:
+        msg: "No IBM MQ error codes found in the log file."
+      when: error_matches.stdout == ""
