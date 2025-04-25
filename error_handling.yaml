@@ -1,6 +1,6 @@
 ---
 - name: IBM MQ Error Code Checker with Email Alerts and Documentation Links
-  hosts: mq_servers
+  hosts: server
   gather_facts: false
   vars:
     log_file_path: /var/mqm/qmgrs/TEST/errors/AMQERR01.LOG
